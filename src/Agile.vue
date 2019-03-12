@@ -146,7 +146,7 @@
                     slide: 0,
                     track: 0
                 },
-                slidesToShow: 5,
+                slidesToShow: 1,
                 defaultSettings: {
                     prevArrow: this.prevArrow,
                     nextArrow: this.nextArrow,
