@@ -1,5 +1,5 @@
 <template>
-    <div class="agile"
+    <div v-cloak class="agile"
          :class="{'agile--fade': settings.fade && !settings.unagile, 'agile--disabled': settings.unagile}">
         <div ref="list" class="agile__list">
             <div ref="track" class="agile__track"
@@ -19,10 +19,12 @@
         </ul>
 
         <button v-if="settings.arrows && !settings.unagile" class="agile__arrow agile__arrow--prev"
+                v-show="slidesCount > slidesToShow"
                 :disabled="currentSlide === 0 && !settings.infinite" @click="prevSlide" v-html="settings.prevArrow">
         </button>
         <button v-if="settings.arrows && !settings.unagile" class="agile__arrow agile__arrow--next"
-                :disabled="currentSlide === slidesCount - 1 && !settings.infinite" @click="nextSlide"
+                v-show="slidesCount > slidesToShow"
+                :disabled="currentSlide >= slidesCount - slidesToShow && !settings.infinite" @click="nextSlide"
                 v-html="settings.nextArrow">
         </button>
     </div>
@@ -70,7 +72,7 @@
 
             nextArrow: {
                 type: String,
-                default: '<svg x="0px" y="0px" viewBox="0 0 24 24"><path d="M7.8,21c-0.3,0-0.5-0.1-0.7-0.3c-0.4-0.4-0.4-1,0-1.4l7.4-7.3L7,4.7c-0.4-0.4-0.4-1,0-1.4s1-0.4,1.4,0l8.8,8.7l-8.8,8.7C8.3,20.9,8,21,7.8,21z"/></svg>'
+                default: '<svg x="0px" y="0px" viewBox="0 0 24 24"><path fill="currentColor" d="M7.8,21c-0.3,0-0.5-0.1-0.7-0.3c-0.4-0.4-0.4-1,0-1.4l7.4-7.3L7,4.7c-0.4-0.4-0.4-1,0-1.4s1-0.4,1.4,0l8.8,8.7l-8.8,8.7C8.3,20.9,8,21,7.8,21z"/></svg>'
             },
 
             options: {
@@ -92,7 +94,7 @@
 
             prevArrow: {
                 type: String,
-                default: '<svg x="0px" y="0px" viewBox="0 0 24 24"><path d="M16.2,21c0.3,0,0.5-0.1,0.7-0.3c0.4-0.4,0.4-1,0-1.4L9.6,12L17,4.7c0.4-0.4,0.4-1,0-1.4c-0.4-0.4-1-0.4-1.4,0L6.8,12l8.8,8.7C15.7,20.9,16,21,16.2,21z"/></svg>'
+                default: '<svg x="0px" y="0px" viewBox="0 0 24 24"><path fill="currentColor" d="M16.2,21c0.3,0,0.5-0.1,0.7-0.3c0.4-0.4,0.4-1,0-1.4L9.6,12L17,4.7c0.4-0.4,0.4-1,0-1.4c-0.4-0.4-1-0.4-1.4,0L6.8,12l8.8,8.7C15.7,20.9,16,21,16.2,21z"/></svg>'
             },
 
             responsive: {
@@ -144,7 +146,7 @@
                     slide: 0,
                     track: 0
                 },
-                slidesToShow: 1,
+                slidesToShow: 5,
                 defaultSettings: {
                     prevArrow: this.prevArrow,
                     nextArrow: this.nextArrow,
@@ -157,6 +159,7 @@
                     mobileFirst: this.mobileFirst,
                     pauseOnDotsHover: this.pauseOnDotsHover,
                     pauseOnHover: this.pauseOnHover,
+                    requestedSlideWidth: 205,
                     responsive: this.responsive,
                     speed: this.speed,
                     timing: this.timing,
@@ -233,10 +236,19 @@
 
         methods: {
             getWidth () {
+                let documentWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth
+                let containerWidth = this.$refs.list.clientWidth
+
+                this.slidesToShow = Math.floor(containerWidth / this.settings.requestedSlideWidth)
+                console.log('slidesToShow: ' + this.slidesToShow)
+
+                let slideWidth = containerWidth / this.slidesToShow
+                console.log('slideWidth: ' + slideWidth)
+
                 this.width = {
-                    document: window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth,
-                    container: this.$refs.list.clientWidth,
-                    slide: !this.settings.unagile ? this.$refs.list.clientWidth / this.slidesToShow : 'auto'
+                    document: documentWidth,
+                    container: containerWidth,
+                    slide: !this.settings.unagile ? slideWidth : 'auto'
                 }
             },
 
@@ -296,14 +308,29 @@
 
             enableInfiniteMode () {
                 if (!this.settings.fade && !this.$refs.list.getElementsByClassName('agile__slide--cloned')[0]) {
-                    let firstSlide = this.$refs.track.firstChild.cloneNode(true)
-                    let lastSlide = this.$refs.track.lastChild.cloneNode(true)
+                    let i, infiniteCount;
 
-                    firstSlide.classList.add('agile__slide--cloned')
-                    lastSlide.classList.add('agile__slide--cloned')
+                    if (this.slidesCount > this.slidesToShow) {
+                        infiniteCount = this.slidesToShow
 
-                    this.$refs.track.insertBefore(lastSlide, this.slides[0])
-                    this.$refs.track.insertBefore(firstSlide, this.slides[this.slidesCount].nextSibling)
+
+                        console.log('enableInfiniteMode')
+
+                        for (i = this.slidesCount; i > (this.slidesCount - infiniteCount); i -= 1) {
+                            let newClone = this.$refs.track.children[this.slidesCount - 1].cloneNode(true)
+                            newClone.classList.add('agile__slide--cloned')
+                            newClone.classList.add('start-clone')
+                            this.$refs.track.insertBefore(newClone, this.slides[0])
+                        }
+
+                        for (i = 0; i < infiniteCount; i += 1) {
+                            let newClone = this.$refs.track.children[i + infiniteCount].cloneNode(true)
+                            newClone.classList.add('agile__slide--cloned')
+                            newClone.classList.add('end-clone')
+                            this.$refs.track.insertBefore(newClone, this.slides[this.$refs.track.children.length-1].nextSibling)
+                        }
+                    }
+                    
                 }
 
                 this.countSlides()
@@ -338,7 +365,7 @@
 
             countSlides () {
                 if (this.settings.infinite && !this.settings.fade && !this.settings.unagile) {
-                    this.allSlidesCount = this.slidesCount + 2
+                    this.allSlidesCount = this.slidesCount + (this.slidesToShow * 2)
                 } else {
                     this.allSlidesCount = this.slidesCount
                 }
@@ -505,7 +532,7 @@
 
                 // Actions on document resize
                 for (let i = 0; i < this.allSlidesCount; ++i) {
-                    this.slides[i].style.width = this.width.container + 'px'
+                    this.slides[i].style.width = this.width.slide + 'px'
 
                     // Prepare slides for fade mode
                     if (this.settings.fade && !this.settings.unagile) {
@@ -520,7 +547,7 @@
                     this.width.track = this.width.container
                     this.transform = 0
                 } else {
-                    this.width.track = this.width.container * this.allSlidesCount
+                    this.width.track = this.width.slide * this.allSlidesCount
                     this.setSlide(this.currentSlide, false, false)
                 }
             }
@@ -554,7 +581,7 @@
                     }
 
                     if (this.dragDistance < -1 * this.swipeDistance) {
-                        if (!this.settings.infinite && this.currentSlide === this.slidesCount - 1) {
+                        if (!this.settings.infinite && this.currentSlide >= this.slidesCount - this.slidesToShow) {
                             return
                         }
 
@@ -579,15 +606,17 @@
         }
 
         &__list {
+            position: relative;
             display: block;
             overflow: hidden;
-            position: relative;
             width: 100%;
         }
 
         &__track {
-            align-items: center;
             display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            align-items: stretch;
             justify-content: flex-start;
 
             .agile--disabled & {
@@ -597,7 +626,7 @@
 
         &__slide {
             display: block;
-
+            
             .agile--fade & {
                 opacity: 0;
                 position: relative;
@@ -617,6 +646,20 @@
         }
 
         &__arrow {
+            position: absolute;
+            top: 50%;
+            transform: translate(0, -50%);
+
+            cursor: pointer;
+            
+            &--prev {
+                left: 0;
+            }
+
+            &--next {
+                right: 0;
+            }
+
             &[disabled] {
                 cursor: default;
             }
